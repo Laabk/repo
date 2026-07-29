@@ -45,3 +45,57 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: reportData, error: reportError } = await supabase
+      .from("reports")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    if (reportError) throw reportError;
+    if (!reportData) {
+      return Response.json({ error: "Report not found." }, { status: 404 });
+    }
+
+    const { data: memberData, error: membersError } = await supabase
+      .from("team_members")
+      .select("signature_key")
+      .eq("report_id", id);
+    if (membersError) throw membersError;
+
+    const signatureKeys = (memberData ?? [])
+      .map((member) => member.signature_key)
+      .filter((key): key is string => Boolean(key));
+
+    const { error: deleteError } = await supabase
+      .from("reports")
+      .delete()
+      .eq("id", id);
+    if (deleteError) throw deleteError;
+
+    let warning: string | null = null;
+    if (signatureKeys.length) {
+      const { error: storageError } = await supabase.storage
+        .from("signatures")
+        .remove(signatureKeys);
+      if (storageError) {
+        console.error("[DELETE /api/reports/:id] signature cleanup", storageError);
+        warning = "The report was deleted, but some signature files may require storage cleanup.";
+      }
+    }
+
+    return Response.json({ ok: true, deletedId: id, warning });
+  } catch (error) {
+    console.error("[DELETE /api/reports/:id]", error);
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Could not delete the report." },
+      { status: 500 },
+    );
+  }
+}

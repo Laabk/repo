@@ -3,13 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isReportsPage = pathname === "/reports" || pathname.startsWith("/reports/");
-  const isReportsReadApi =
-    request.method === "GET" &&
+  const isReportsAdminApi =
+    (request.method === "GET" || request.method === "DELETE") &&
     (pathname === "/api/reports" || pathname.startsWith("/api/reports/"));
 
   // Forms, drafts, report creation, and shared signing links are intentionally
   // public. Only viewing submitted reports requires administrator credentials.
-  if (!isReportsPage && !isReportsReadApi) {
+  if (!isReportsPage && !isReportsAdminApi) {
     return NextResponse.next();
   }
 

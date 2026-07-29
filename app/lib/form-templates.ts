@@ -12,6 +12,8 @@ export type FormTemplate = {
   category: string;
   description: string;
   reportPrefix: string;
+  subjectLabel?: string;
+  defaultTeamSize?: number;
   sections: FormSection[];
 };
 
@@ -45,6 +47,57 @@ const check = (id: string, label: string, options: string[]): FormField => ({
   options,
   full: true,
 });
+
+const attachmentAssessment = (id: string, label: string): FormField[] => [
+  {
+    id: `${id}_available`,
+    label: `${label}: attached / available?`,
+    type: "radio",
+    options: ["Yes", "No"],
+    required: true,
+  },
+  {
+    id: `${id}_quality`,
+    label: `${label}: quality assessment`,
+    type: "radio",
+    options: ["Satisfactory", "Unsatisfactory"],
+    visibleWhen: { field: `${id}_available`, equals: "Yes" },
+  },
+];
+
+const qualityAssuranceSections = (
+  applicationType: string,
+  attachments: Array<[id: string, label: string]>,
+): FormSection[] => [
+  {
+    id: "application-details",
+    shortTitle: "Application",
+    title: `${applicationType} details`,
+    description: "Identify the proponent, proposal and application location.",
+    fields: [
+      { id: "inspection_date", label: "Review date", type: "date", required: true },
+      { id: "facility_name", label: "Name of proponent", type: "text", required: true },
+      { id: "proposal_type", label: "Type of proposal", type: "text", required: true },
+      { id: "location", label: "Location", type: "text", required: true },
+      { id: "district", label: "District", type: "text" },
+      { id: "region", label: "Region", type: "text" },
+    ],
+  },
+  {
+    id: "attachments",
+    shortTitle: "Attachments",
+    title: "Application attachments",
+    description: "Confirm whether each item is attached and assess the quality of every available item.",
+    fields: attachments.flatMap(([id, label]) => attachmentAssessment(id, label)),
+  },
+  {
+    id: "comments",
+    shortTitle: "Comments",
+    title: "Quality assurance comments",
+    description: "Record observations, missing items, corrections or other review comments.",
+    fields: [area("comments", "Comments")],
+  },
+];
 
 const lpgSections: FormSection[] = [
   {
@@ -359,6 +412,62 @@ const constructionSections: FormSection[] = [
   },
 ];
 
+const ea1RenewalSections = qualityAssuranceSections("EA1 renewal application", [
+  ["checklist", "Checklist"],
+  ["processing_fee_payment", "Processing fee payment"],
+  ["permit_fee_payment", "Permit fee payment"],
+  ["approval_sheet", "Approval sheet"],
+  ["schedule", "Schedule"],
+]);
+
+const regionalEiaQualitySections = qualityAssuranceSections("Regional EIA application", [
+  ["site_plans", "Site plans"],
+  ["block_plan", "Block plan"],
+  ["zoning", "Zoning"],
+  ["screening_report", "Screening report"],
+  ["processing_fee_payment", "Processing fee payment"],
+  ["approval_sheet", "Approval sheet"],
+  ["schedule", "Schedule"],
+]);
+
+const pesticidesQualitySections = qualityAssuranceSections("Pesticides EIA application", [
+  ["checklist", "Checklist"],
+  ["permit_fee_payment", "Permit fee payment"],
+  ["approval_sheet", "Approval sheet"],
+  ["schedule", "Schedule"],
+]);
+
+const eiaApprovalSections: FormSection[] = [
+  {
+    id: "proponent",
+    shortTitle: "Proponent",
+    title: "Proponent and undertaking",
+    description: "Record the proponent and the undertaking being considered by the EIA Technical Committee.",
+    fields: [
+      { id: "facility_name", label: "Name of proponent", type: "text", required: true },
+      area("address", "Address", { required: true }),
+      area("undertaking", "Undertaking", { required: true }),
+    ],
+  },
+  {
+    id: "recommendation",
+    shortTitle: "Decision",
+    title: "Environmental permit recommendation",
+    description: "Record the committee recommendation before assigning the members who will sign.",
+    fields: [
+      {
+        id: "recommended_entity",
+        label: "Name/entity recommended to receive the Environmental Permit",
+        type: "text",
+        required: true,
+        full: true,
+      },
+      { id: "approval_date", label: "Approval date", type: "date", required: true },
+      area("recommendation", "Recommendation, conditions or committee comments"),
+    ],
+  },
+];
+
 export const formTemplates: FormTemplate[] = [
   {
     id: "hospitality-site-verification-v1",
@@ -400,6 +509,54 @@ export const formTemplates: FormTemplate[] = [
     reportPrefix: "Construction screening",
     sections: constructionSections,
   },
+  {
+    id: "ea1-quality-assurance-renewal-v1",
+    slug: "ea1-quality-assurance-renewal",
+    title: "Quality Assurance Checklist — EA1 Renewal Applications",
+    shortTitle: "EA1 renewal QA",
+    category: "Quality assurance review",
+    description: "EA1 renewal application attachments, payment checks, approval sheet and schedule.",
+    reportPrefix: "EA1 renewal quality assurance",
+    subjectLabel: "Proponent",
+    defaultTeamSize: 2,
+    sections: ea1RenewalSections,
+  },
+  {
+    id: "regional-eia-quality-assurance-v1",
+    slug: "regional-eia-quality-assurance",
+    title: "Regional Quality Assurance Checklist — EIA Applications",
+    shortTitle: "Regional EIA QA",
+    category: "Regional quality assurance review",
+    description: "Site plans, zoning, screening report, payments, approval sheet and schedule.",
+    reportPrefix: "Regional EIA quality assurance",
+    subjectLabel: "Proponent",
+    defaultTeamSize: 2,
+    sections: regionalEiaQualitySections,
+  },
+  {
+    id: "pesticides-quality-assurance-v1",
+    slug: "pesticides-quality-assurance",
+    title: "Pesticides Quality Assurance Checklist — EIA Applications",
+    shortTitle: "Pesticides EIA QA",
+    category: "Pesticides quality assurance review",
+    description: "Pesticides application checklist, permit payment, approval sheet and schedule.",
+    reportPrefix: "Pesticides EIA quality assurance",
+    subjectLabel: "Proponent",
+    defaultTeamSize: 2,
+    sections: pesticidesQualitySections,
+  },
+  {
+    id: "eia-technical-committee-approval-v1",
+    slug: "eia-technical-committee-approval",
+    title: "EIA Technical Committee Approval Sheet",
+    shortTitle: "EIA approval sheet",
+    category: "EIA Technical Committee",
+    description: "Proponent, undertaking, environmental permit recommendation and committee signatures.",
+    reportPrefix: "EIA Technical Committee approval",
+    subjectLabel: "Proponent",
+    defaultTeamSize: 5,
+    sections: eiaApprovalSections,
+  },
 ];
 
 export const defaultTemplate = formTemplates[0];
@@ -413,4 +570,3 @@ export function getRequiredFieldIds(template: FormTemplate) {
     section.fields.filter((field) => field.required).map((field) => field.id),
   );
 }
-

@@ -46,7 +46,10 @@ export async function POST(request: Request) {
     const formData = payload.formData ?? {};
     const facilityName = String(formData.facility_name ?? "").trim();
     if (!facilityName) {
-      return Response.json({ error: "The facility or institution name is required." }, { status: 400 });
+      return Response.json(
+        { error: `The ${template.subjectLabel?.toLocaleLowerCase() ?? "facility or institution"} name is required.` },
+        { status: 400 },
+      );
     }
 
     const id = crypto.randomUUID();

@@ -1,11 +1,15 @@
 # Field Activity Reports — Local and Vercel Version
 
-This is a mobile-friendly field inspection system with four forms:
+This is a mobile-friendly field inspection system with eight forms:
 
 - Hospitality Industry Site Verification
 - Petroleum Retail Outlet / LPG Refilling Plant
 - Existing Health Institution Environmental Permit
 - General Construction Screening
+- Quality Assurance Checklist — EA1 Renewal Applications
+- Regional Quality Assurance Checklist — EIA Applications
+- Pesticides Quality Assurance Checklist — EIA Applications
+- EIA Technical Committee Approval Sheet
 
 The lead officer completes a form and enters the team roster. The app creates one
 shared link and QR code. Team members do not create accounts: each person chooses
@@ -14,6 +18,10 @@ signature slot locks, and the report can be finally submitted after everyone sig
 The dashboard greeting follows the visitor's local time without displaying a
 personal name. Forms and drafts remain open; clicking **Reports** immediately
 starts the administrator username/password challenge.
+
+The protected Reports workspace also allows the administrator to permanently
+delete an unnecessary report after confirming the action. Deleting a report
+also removes its team roster and stored signatures.
 
 ## What you need
 

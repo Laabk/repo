@@ -158,7 +158,7 @@ export function ReportDocument({ id }: { id: string }) {
         </header>
 
         <section className="report-overview-grid">
-          <div><FileText /><span>Facility<strong>{String(report.formData.facility_name || "Not entered")}</strong></span></div>
+          <div><FileText /><span>{template.subjectLabel ?? "Facility"}<strong>{String(report.formData.facility_name || "Not entered")}</strong></span></div>
           <div><MapPin /><span>Location<strong>{String(report.formData.location || "Not entered")}</strong></span></div>
           <div><Users /><span>Inspecting team<strong>{signedCount} of {members.length} signed</strong></span></div>
           <div><ShieldCheck /><span>Lead officer<strong>{report.leadName}</strong></span></div>

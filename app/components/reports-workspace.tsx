@@ -14,6 +14,7 @@ import {
   MapPin,
   PlusCircle,
   Search,
+  Trash2,
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,6 +35,7 @@ export function ReportsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +51,27 @@ export function ReportsWorkspace() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function deleteReport(report: Report) {
+    const confirmed = window.confirm(
+      `Delete "${report.title}"?\n\nThis permanently removes the report, its team roster and saved signatures. This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(report.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/reports/${report.id}`, { method: "DELETE" });
+      const result = (await response.json()) as { error?: string; warning?: string | null };
+      if (!response.ok) throw new Error(result.error ?? "Could not delete the report.");
+      setReports((current) => current.filter((item) => item.id !== report.id));
+      if (result.warning) setError(result.warning);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete the report.");
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
@@ -91,13 +114,25 @@ export function ReportsWorkspace() {
         {!loading && filtered.length ? (
           <div className="reports-list">
             {filtered.map((report) => (
-              <Link className="report-row" href={`/reports/${report.id}`} key={report.id}>
-                <span className="report-file-icon"><FileText /></span>
-                <span className="report-main"><strong>{report.title}</strong><small><MapPin />{String(report.formData.location || "Location not entered")} <i>•</i> Lead: {report.leadName}</small></span>
-                <span className={`report-status ${report.status === "submitted" ? "submitted" : ""}`}>{report.status === "submitted" ? <CheckCircle2 /> : <Users />}{report.status === "submitted" ? "Submitted" : "Awaiting signatures"}</span>
-                <span className="report-date">{new Date(report.createdAt).toLocaleDateString("en-GH", { dateStyle: "medium" })}</span>
-                <ArrowRight className="report-arrow" />
-              </Link>
+              <div className="report-row-shell" key={report.id}>
+                <Link className="report-row" href={`/reports/${report.id}`}>
+                  <span className="report-file-icon"><FileText /></span>
+                  <span className="report-main"><strong>{report.title}</strong><small><MapPin />{String(report.formData.location || report.formData.address || "Location not entered")} <i>•</i> Lead: {report.leadName}</small></span>
+                  <span className={`report-status ${report.status === "submitted" ? "submitted" : ""}`}>{report.status === "submitted" ? <CheckCircle2 /> : <Users />}{report.status === "submitted" ? "Submitted" : "Awaiting signatures"}</span>
+                  <span className="report-date">{new Date(report.createdAt).toLocaleDateString("en-GH", { dateStyle: "medium" })}</span>
+                  <ArrowRight className="report-arrow" />
+                </Link>
+                <button
+                  aria-label={`Delete ${report.title}`}
+                  className="report-delete-button"
+                  disabled={deletingId === report.id}
+                  onClick={() => deleteReport(report)}
+                  title="Delete report"
+                  type="button"
+                >
+                  {deletingId === report.id ? <LoaderCircle /> : <Trash2 />}
+                </button>
+              </div>
             ))}
           </div>
         ) : null}

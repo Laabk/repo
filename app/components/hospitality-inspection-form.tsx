@@ -39,6 +39,7 @@ function hasValue(value: FieldValue | undefined) {
 export function InspectionForm({ template }: { template: FormTemplate }) {
   const sections = template.sections;
   const draftKey = `field-report-${template.id}-draft`;
+  const defaultTeamSize = template.defaultTeamSize ?? 2;
   const [values, setValues] = useState<Record<string, FieldValue>>({});
   const [team, setTeam] = useState<Array<{ id: string; name: string }>>([]);
   const [stage, setStage] = useState(0);
@@ -53,10 +54,14 @@ export function InspectionForm({ template }: { template: FormTemplate }) {
       try {
         const draft = JSON.parse(stored) as Draft;
         setValues(draft.values ?? {});
-        setTeam(draft.team?.length ? draft.team : [newMember(), newMember()]);
+        setTeam(
+          draft.team?.length
+            ? draft.team
+            : Array.from({ length: defaultTeamSize }, () => newMember()),
+        );
         setStage(Math.min(draft.stage ?? 0, sections.length));
       } catch {
-        setTeam([newMember(), newMember()]);
+        setTeam(Array.from({ length: defaultTeamSize }, () => newMember()));
       }
     } else {
       const today = new Date();
@@ -64,10 +69,10 @@ export function InspectionForm({ template }: { template: FormTemplate }) {
         .toISOString()
         .slice(0, 10);
       setValues({ inspection_date: localDate });
-      setTeam([newMember(), newMember()]);
+      setTeam(Array.from({ length: defaultTeamSize }, () => newMember()));
     }
     setHydrated(true);
-  }, [draftKey, sections.length]);
+  }, [defaultTeamSize, draftKey, sections.length]);
 
   useEffect(() => {
     if (!hydrated) return;
