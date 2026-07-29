@@ -1,5 +1,9 @@
 import { formTemplates } from "@/app/lib/form-templates";
 import {
+  adminUnauthorizedResponse,
+  isAdminRequest,
+} from "@/app/lib/admin-auth";
+import {
   getSupabaseAdmin,
   publicReport,
   type ReportRow,
@@ -11,7 +15,9 @@ type CreateReportPayload = {
   team?: Array<{ name?: string }>;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorizedResponse();
+
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
@@ -19,7 +25,10 @@ export async function GET() {
       .select("*")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return Response.json({ reports: (data as ReportRow[]).map(publicReport) });
+    return Response.json(
+      { reports: (data as ReportRow[]).map(publicReport) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Could not load reports." },

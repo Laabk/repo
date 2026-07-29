@@ -5,11 +5,17 @@ import {
   type MemberRow,
   type ReportRow,
 } from "@/app/lib/supabase-server";
+import {
+  adminUnauthorizedResponse,
+  isAdminRequest,
+} from "@/app/lib/admin-auth";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!isAdminRequest(request)) return adminUnauthorizedResponse();
+
   const { id } = await params;
   try {
     const supabase = getSupabaseAdmin();
@@ -29,15 +35,18 @@ export async function GET(
       .order("display_order");
     if (membersError) throw membersError;
 
-    return Response.json({
-      report: publicReport(report),
-      members: (memberData as MemberRow[]).map((member) => ({
-        ...publicMember(member),
-        signatureUrl: member.signature_key
-          ? `/api/sign/${report.public_token}/signature/${member.id}`
-          : null,
-      })),
-    });
+    return Response.json(
+      {
+        report: publicReport(report),
+        members: (memberData as MemberRow[]).map((member) => ({
+          ...publicMember(member),
+          signatureUrl: member.signature_key
+            ? `/api/sign/${report.public_token}/signature/${member.id}`
+            : null,
+        })),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Could not load the report." },
@@ -47,9 +56,11 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!isAdminRequest(request)) return adminUnauthorizedResponse();
+
   const { id } = await params;
   try {
     const supabase = getSupabaseAdmin();

@@ -17,7 +17,9 @@ their assigned name, enters their details and signs on their phone. A completed
 signature slot locks, and the report can be finally submitted after everyone signs.
 The dashboard greeting follows the visitor's local time without displaying a
 personal name. Forms and drafts remain open; clicking **Reports** immediately
-starts the administrator username/password challenge.
+opens a dedicated administrator username/password screen. Report access is kept
+only in page memory: opening Reports again, refreshing, revisiting or opening an
+individual report requires the credentials again.
 
 The protected Reports workspace also allows the administrator to permanently
 delete an unnecessary report after confirming the action. Deleting a report
@@ -65,8 +67,10 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. The home page, forms, local drafts, and shared
-signing links do not require an account. The browser asks for the administrator
-username and password from `.env.local` only when **Reports** is opened.
+signing links do not require an account. The application asks for the
+administrator username and password from `.env.local` whenever **Reports** is
+opened. Refreshing or revisiting a report immediately locks access and asks
+again.
 
 Before submitting a form, open <http://localhost:3000/api/system-check>. It safely
 checks the Supabase connection, required tables, and signature bucket without
@@ -99,6 +103,10 @@ temporary names and signatures before using real field data.
 ## Security notes
 
 - Only **Reports** and its report-viewing data are password-protected.
+- Administrator credentials are kept only in the current page's memory. They
+  are not stored in cookies, local storage or session storage.
+- Every report-data GET or DELETE request verifies the administrator
+  credentials on the server.
 - Team signing links intentionally require no account.
 - Anyone who has a signing link can select an unsigned name, so share links only
   with the assigned team.

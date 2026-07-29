@@ -1,37 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  adminUnauthorizedResponse,
+  isAdminRequest,
+} from "@/app/lib/admin-auth";
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isReportsPage = pathname === "/reports" || pathname.startsWith("/reports/");
   const isReportsAdminApi =
     (request.method === "GET" || request.method === "DELETE") &&
     (pathname === "/api/reports" || pathname.startsWith("/api/reports/"));
 
-  // Forms, drafts, report creation, and shared signing links are intentionally
-  // public. Only viewing submitted reports requires administrator credentials.
-  if (!isReportsPage && !isReportsAdminApi) {
-    return NextResponse.next();
+  // Report pages contain no server-rendered report data and display an
+  // application login on every visit. Report API data remains protected here
+  // and is verified again inside each report route handler.
+  if (isReportsAdminApi && !isAdminRequest(request)) {
+    return adminUnauthorizedResponse();
   }
 
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD;
-  const authorization = request.headers.get("authorization");
-
-  if (password && authorization?.startsWith("Basic ")) {
-    try {
-      const [enteredUser, enteredPassword] = atob(authorization.slice(6)).split(":");
-      if (enteredUser === username && enteredPassword === password) {
-        return NextResponse.next();
-      }
-    } catch {
-      // The challenge below handles malformed credentials.
-    }
-  }
-
-  return new NextResponse("Administrator sign-in required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Field Activity Reports"' },
-  });
+  return NextResponse.next();
 }
 
 export const config = {

@@ -1,6 +1,6 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect, @next/next/no-img-element -- report data and protected signature images are loaded at runtime */
+/* eslint-disable @next/next/no-img-element -- protected signature images are loaded at runtime */
 
 import Link from "next/link";
 import {
@@ -12,14 +12,14 @@ import {
   ExternalLink,
   FileDown,
   FileText,
-  LoaderCircle,
   LockKeyhole,
   MapPin,
   Printer,
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { AdminAccessGate } from "@/app/components/admin-access-gate";
 import { AppShell } from "@/app/components/app-shell";
 import { type FieldValue } from "@/app/lib/hospitality-form";
 import { getFormTemplate } from "@/app/lib/form-templates";
@@ -55,25 +55,28 @@ type Report = {
 export function ReportDocument({ id }: { id: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [authorization, setAuthorization] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const load = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/reports/${id}`, { cache: "no-store" });
-      const result = (await response.json()) as { report?: Report; members?: Member[]; error?: string };
-      if (!response.ok || !result.report) throw new Error(result.error ?? "Could not load this report.");
-      setReport(result.report);
-      setMembers(result.members ?? []);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load this report.");
-    } finally {
-      setLoading(false);
+  async function authenticate(enteredAuthorization: string) {
+    const response = await fetch(`/api/reports/${id}`, {
+      cache: "no-store",
+      headers: { Authorization: enteredAuthorization },
+    });
+    const result = (await response.json()) as {
+      report?: Report;
+      members?: Member[];
+      error?: string;
+    };
+    if (!response.ok || !result.report) {
+      throw new Error(result.error ?? "Could not load this report.");
     }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+    setReport(result.report);
+    setMembers(result.members ?? []);
+    setAuthorization(enteredAuthorization);
+    setError("");
+  }
 
   const template = getFormTemplate(report?.templateId);
   const answeredSections = useMemo(() => report ? template.sections.map((section) => ({
@@ -127,8 +130,12 @@ export function ReportDocument({ id }: { id: string }) {
     URL.revokeObjectURL(url);
   }
 
-  if (loading) {
-    return <AppShell active="reports"><div className="reports-loading page-load"><LoaderCircle />Loading complete report…</div></AppShell>;
+  if (!authorization) {
+    return (
+      <AppShell active="reports">
+        <AdminAccessGate onAuthenticate={authenticate} />
+      </AppShell>
+    );
   }
 
   if (!report) {

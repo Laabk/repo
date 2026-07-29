@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect -- report data is loaded from the administrator API when the workspace mounts */
-
 import Link from "next/link";
 import {
   ArrowRight,
@@ -11,13 +9,15 @@ import {
   FilePlus2,
   FileText,
   LoaderCircle,
+  LockKeyhole,
   MapPin,
   PlusCircle,
   Search,
   Trash2,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { AdminAccessGate } from "@/app/components/admin-access-gate";
 import { AppShell } from "@/app/components/app-shell";
 
 type Report = {
@@ -32,25 +32,24 @@ type Report = {
 
 export function ReportsWorkspace() {
   const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [authorization, setAuthorization] = useState("");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [deletingId, setDeletingId] = useState("");
 
-  const load = useCallback(async () => {
-    try {
-      const response = await fetch("/api/reports", { cache: "no-store" });
-      const result = (await response.json()) as { reports?: Report[]; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Could not load reports.");
-      setReports(result.reports ?? []);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load reports.");
-    } finally {
-      setLoading(false);
+  async function authenticate(enteredAuthorization: string) {
+    const response = await fetch("/api/reports", {
+      cache: "no-store",
+      headers: { Authorization: enteredAuthorization },
+    });
+    const result = (await response.json()) as { reports?: Report[]; error?: string };
+    if (!response.ok) {
+      throw new Error(result.error ?? "Administrator access could not be verified.");
     }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+    setReports(result.reports ?? []);
+    setAuthorization(enteredAuthorization);
+    setError("");
+  }
 
   async function deleteReport(report: Report) {
     const confirmed = window.confirm(
@@ -61,7 +60,10 @@ export function ReportsWorkspace() {
     setDeletingId(report.id);
     setError("");
     try {
-      const response = await fetch(`/api/reports/${report.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/reports/${report.id}`, {
+        method: "DELETE",
+        headers: { Authorization: authorization },
+      });
       const result = (await response.json()) as { error?: string; warning?: string | null };
       if (!response.ok) throw new Error(result.error ?? "Could not delete the report.");
       setReports((current) => current.filter((item) => item.id !== report.id));
@@ -87,11 +89,33 @@ export function ReportsWorkspace() {
   const submitted = reports.filter((report) => report.status === "submitted").length;
   const awaiting = reports.filter((report) => report.status !== "submitted").length;
 
+  if (!authorization) {
+    return (
+      <AppShell active="reports">
+        <AdminAccessGate onAuthenticate={authenticate} />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell active="reports">
       <section className="reports-heading">
         <div><p className="eyebrow">Administrator workspace</p><h1>Field reports</h1><p>View inspections, monitor signatures and export final records.</p></div>
-        <Link className="button button-primary" href="/#available-forms"><PlusCircle />New inspection</Link>
+        <div className="reports-heading-actions">
+          <button
+            className="button button-outline-dark"
+            onClick={() => {
+              setAuthorization("");
+              setReports([]);
+              setQuery("");
+              setError("");
+            }}
+            type="button"
+          >
+            <LockKeyhole />Lock reports
+          </button>
+          <Link className="button button-primary" href="/#available-forms"><PlusCircle />New inspection</Link>
+        </div>
       </section>
 
       <section className="report-metrics">
@@ -106,12 +130,11 @@ export function ReportsWorkspace() {
           <label><Search /><input aria-label="Search reports" onChange={(event) => setQuery(event.target.value)} placeholder="Search facility or location" value={query} /></label>
         </div>
 
-        {loading ? <div className="reports-loading"><LoaderCircle /><span>Loading reports…</span></div> : null}
         {error ? <div className="form-alert">{error}</div> : null}
-        {!loading && !error && !reports.length ? (
+        {!error && !reports.length ? (
           <div className="reports-empty"><span><FilePlus2 /></span><h3>No field reports yet</h3><p>Choose a checklist, complete the activity report and assign the signing team.</p><Link className="button button-primary" href="/#available-forms"><ClipboardCheck />Choose first form</Link></div>
         ) : null}
-        {!loading && filtered.length ? (
+        {filtered.length ? (
           <div className="reports-list">
             {filtered.map((report) => (
               <div className="report-row-shell" key={report.id}>
